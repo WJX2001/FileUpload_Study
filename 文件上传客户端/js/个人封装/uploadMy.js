@@ -43,13 +43,43 @@
   // 创建一个form变量
   let _file = null
 
+
+  // 将移除操作封装为抽象为一个函数
+  const clearHandle = () => {
+    // 移除文件
+    _file = null
+
+    // 移除提示
+    upload_tip.style.display = 'block'
+    upload_list.style.display = 'none'
+    upload_list.innerHTML = ``
+  }
+
+
   // 上传文件到服务器
+
+  // 禁用/loading 按钮
+  const changeDisable = (flag) => {
+    if (flag) {
+      upload_button_select.classList.add('disable')
+      upload_button_upload.classList.add('loading')
+      return
+    }
+    upload_button_select.classList.remove('disable')
+    upload_button_upload.classList.remove('loading')
+  }
+  // 对上传到服务器进行监听
   upload_button_upload.addEventListener('click', function () {
+    if (upload_button_upload.classList.contains('disable') || upload_button_upload.classList.contains('loading')) {
+      return
+    }
+    changeDisable(true)
     // 非空校验
     if (!_file) {
       alert('请您先选择要上传的文件')
       return
     }
+    changeDisable(true) // 变成不可使用状态
     // 把文件传递给服务器 FormData / BASE64
     let formData = new FormData()
     formData.append('file', _file)
@@ -58,13 +88,19 @@
       // + 号可以进行转换为数字
       if (+data.code === 0) {
         alert(`文件已经上传成功,您可以基于${data.servicePath} 访问这个资源`)
+        clearHandle()
+        changeDisable(false) // 变成可使用状态
         return
       }
       return Promise.reject(data.codeText)
     }).catch(reason => {
       alert('文件上传失败，请您稍后再试')
+      clearHandle()
+    }).finally(() => {
+      // 不管成不成功 都会执行
+      clearHandle()
+      changeDisable(false)
     })
-
 
   })
 
@@ -73,13 +109,7 @@
     let target = ev.target
     // 通过事件委托机制 判断事件源是不是em，如果是的话就进行移除
     if (target.tagName === 'EM') {
-      // 移除文件
-      _file = null
-
-      // 点击的是移除按钮
-      upload_tip.style.display = 'block'
-      upload_list.style.display = 'none'
-      upload_list.innerHTML = ``
+      clearHandle()
     }
   })
 
@@ -117,13 +147,14 @@
         <span>文件：${file.name}</span>
         <span><em>移除</em></span>
     </li>`
-
-
   })
 
-
+ 
   // 通过点击按钮 触发上传文件input框选择文件的行为
   upload_button_select.addEventListener('click', function () {
+    if (upload_button_select.classList.contains('disable') || upload_button_select.classList.contains('loading')) {
+      return
+    }
     upload_inp.click()
   })
 })()
