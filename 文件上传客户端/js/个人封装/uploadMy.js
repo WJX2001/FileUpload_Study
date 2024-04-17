@@ -408,4 +408,137 @@ const delay = (interval) => {
     if (checkIsDisable(this)) return
     upload_inp.click()
   })
+})();
+
+
+/* 多文件上传 */
+(function () {
+  let upload = document.querySelector('#upload5'),
+    upload_inp = upload.querySelector('.upload_inp'),
+    upload_button_select = upload.querySelector('.upload_button.select'),
+    upload_button_upload = upload.querySelector('.upload_button.upload'),
+    upload_list = upload.querySelector('.upload_list')
+  let _files = []
+
+  // 验证是否处于可操作性状态
+  const checkIsDisable = element => {
+    let classList = element.classList
+    return classList.contains('disable') || classList.contains('loading')
+  }
+
+  // 把文件上传到服务器
+  const changeDisable = flag => {
+    if (flag) {
+      upload_button_select.classList.add('disable')
+      upload_button_upload.classList.add('loading')
+      return
+    }
+    upload_button_select.classList.remove('disable')
+    upload_button_upload.classList.remove('loading')
+  }
+  // 监控点击上传事件
+  upload_button_upload.addEventListener('click', async function () {
+    if (checkIsDisable(this)) return
+    if (_files.length === 0) {
+      alert('请您先选择要上传的文件~~')
+      return
+    }
+    changeDisable(true)
+    // 循环发送请求
+    let upload_list_arr = Array.from(upload_list.querySelectorAll('li'))
+    _files = _files.map(item => {
+      let fm = new FormData,
+        curLi = upload_list_arr.find(liBox => liBox.getAttribute('key') === item.key),
+        curSpan = curLi ? curLi.querySelector('span:nth-last-child(1)') : null
+      fm.append('file', item.file)
+      fm.append('filename', item.filename)
+      return instance.post('/upload_single', fm, {
+        onUploadProgress (ev) {
+          // 检测每一个的上传进度
+          if (curSpan) {
+            curSpan.innerHTML = `${(ev.loaded / ev.total * 100).toFixed(2)}%` // 保留两位小数
+          }
+        }
+      }).then(data => {
+        if (+data.code === 0) {
+          if (curSpan) {
+            curSpan.innerHTML = `100%`
+          }
+          return
+        }
+        return Promise.reject()
+      })
+    })
+
+    // 等待所有处理的结果
+    Promise.all(_files).then(async() => {
+      await delay(500)
+      alert('恭喜您，所有文件都上传成功~~')
+    }).catch(() => {
+      alert('很遗憾，上传过程中出现问题，请您稍后再试~~')
+    }).finally(() => {
+      changeDisable(false)
+      _files = []
+      upload_list.innerHTML = ''
+      upload_list.style.display = 'none'
+    })
+  })
+
+  // 基于事件委托实现移除的操作
+  upload_list.addEventListener('click', function (ev) {
+    let target = ev.target, curLi = null, key
+    // 移除样式上的li
+    if (target.tagName === 'EM') {
+      curLi = target.parentNode.parentNode
+      if (!curLi) return
+      key = curLi.getAttribute('key')
+      upload_list.removeChild(curLi)
+      // 移除实际数据的li 从_files
+      _files = _files.filter(item => item.key !== key)
+    }
+
+
+  })
+
+  // 获取唯一值
+  const createRandom = () => {
+    let ran = Math.random() * new Date()
+    console.log(ran, 'ssss')
+    return ran.toString(16).replace('.', '')
+  }
+
+  upload_inp.addEventListener('change', async function () {
+    // 将输入的文件从类数组转为真正的数组
+    _files = Array.from(upload_inp.files)
+    if (_files.length === 0) return
+
+    /* 
+      插入模版语法 并重构集合的数据结构 给每一项设置一个唯一值，作为自定义属性存储到元素上，
+        后期点击删除按钮的时候，我们基于这个自定义属性获取唯一值，再到集合中根据这个唯一值，删除集合中这一项
+    */
+
+    _files = _files.map(file => {
+      return {
+        file,
+        filename: file.name,
+        key: createRandom()
+      }
+    })
+    console.log(_files, 'files')
+
+    let str = ``
+    _files.forEach((item, index) => {
+      str += `<li key='${item.key}'>
+            <span>文件${index + 1}：${item.filename}</span>
+            <span><em>移除</em></span>
+          </li>`
+    })
+    upload_list.innerHTML = str
+    upload_list.style.display = 'block'
+  })
+
+  upload_button_select.addEventListener('click', function () {
+    if (checkIsDisable(this)) return
+    upload_inp.click()
+  })
 })()
