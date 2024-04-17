@@ -13,7 +13,7 @@ app.listen(PORT, () => {
     console.log(`THE WEB SERVICE IS CREATED SUCCESSFULLY AND IS LISTENING TO THE PORT：${PORT}，YOU CAN VISIT：${HOSTNAME}`);
 });
 
-/*-中间件-*/
+/*-中间件-*/ /* 处理跨域问题 */
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
     req.method === 'OPTIONS' ? res.send('CURRENT SERVICES SUPPORT CROSS DOMAIN REQUESTS!') : next();
@@ -173,12 +173,17 @@ app.post('/upload_single_name', async (req, res) => {
 app.post('/upload_single_base64', async (req, res) => {
     let file = req.body.file,
         filename = req.body.filename,
-        spark = new SparkMD5.ArrayBuffer(),
+        // 使用SparkMD5 根据实际内容命名，如果内容一样，名字就一样
+        spark = new SparkMD5.ArrayBuffer(), 
+        // 获取文件的后缀名
         suffix = /\.([0-9a-zA-Z]+)$/.exec(filename)[1],
         isExists = false,
         path;
+    // 首先解密
     file = decodeURIComponent(file);
+    // 去掉前缀声明
     file = file.replace(/^data:image\/\w+;base64,/, "");
+    // 变成buffer数据
     file = Buffer.from(file, 'base64');
     spark.append(file);
     path = `${uploadDir}/${spark.end()}.${suffix}`;

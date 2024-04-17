@@ -149,7 +149,7 @@
     </li>`
   })
 
- 
+
   // 通过点击按钮 触发上传文件input框选择文件的行为
   upload_button_select.addEventListener('click', function () {
     if (upload_button_select.classList.contains('disable') || upload_button_select.classList.contains('loading')) {
@@ -157,4 +157,72 @@
     }
     upload_inp.click()
   })
-})()
+})();
+
+
+/* 基于BASE64实现文件上传 */
+(function () {
+  let upload = document.querySelector('#upload2'),
+    upload_inp = upload.querySelector('.upload_inp'),
+    upload_button_select = upload.querySelector('.upload_button.select')
+
+  // 验证是否处于可操作性状态
+  const checkIsDisable = element => {
+    let classList = element.classList
+    return classList.contains('disable') || classList.contains('loading')
+  }
+
+  // 把选择的文件读取为BASE64 通过返回一个promise的形式处理异步结果 这样后续可以使用await拿到结果
+  const changeBASE64 = file => {
+    return new Promise(resolve => {
+      let fileReader = new FileReader()
+      fileReader.readAsDataURL(file)
+      // 异步操作
+      fileReader.onload = ev => {
+        resolve(ev.target.result)
+      }
+    })
+  }
+
+
+  upload_inp.addEventListener('change', async function () {
+    let file = upload_inp.files[0]
+
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      alert('上传的文件不能超过2MB~~')
+      return
+    }
+    upload_button_select.classList.add('loading')
+    const BASE64 = await changeBASE64(file)
+    // 发起请求
+    try {
+      const data = await instance.post('/upload_single_base64', {
+        // 防止长的BASE64码在传输过程中乱掉 使用encodeURIComponent
+        file: encodeURIComponent(BASE64),
+        filename: file.name
+
+      }, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      })
+      if(+data.code === 0) {
+        alert(`恭喜您，文件上传成功，您可基于${data.servicePath} 访问这个资源`)
+        return 
+      }
+      throw data.codeText
+    } catch (err) {
+      alert('很遗憾，文件上传失败，请您稍后再试')
+    } finally {
+      upload_button_select.classList.remove('loading')
+    }
+  })
+  upload_button_select.addEventListener('click', function () {
+    if (checkIsDisable(this)) return
+    upload_inp.click()
+  })
+})();
+
+
+
