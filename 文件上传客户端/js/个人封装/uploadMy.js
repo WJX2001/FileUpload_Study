@@ -8,6 +8,7 @@
       5、Buffer  
   */
 
+
 // 发起请求
 // (function () {
 //   let fm = new FormData
@@ -207,9 +208,9 @@
           'Content-Type': 'application/x-www-form-urlencoded'
         }
       })
-      if(+data.code === 0) {
+      if (+data.code === 0) {
         alert(`恭喜您，文件上传成功，您可基于${data.servicePath} 访问这个资源`)
-        return 
+        return
       }
       throw data.codeText
     } catch (err) {
@@ -226,3 +227,117 @@
 
 
 
+/* 文件缩略图 & 自动生成名字 */
+(function () {
+  let upload = document.querySelector('#upload3'),
+    upload_inp = upload.querySelector('.upload_inp'),
+    upload_button_select = upload.querySelector('.upload_button.select'),
+    upload_button_upload = upload.querySelector('.upload_button.upload'),
+    upload_abbre = upload.querySelector('.upload_abbre'),
+    upload_abbre_img = upload_abbre.querySelector('img')
+  let _file = null
+
+  // 验证是否处于可操作性状态
+  const checkIsDisable = element => {
+    let classList = element.classList
+    return classList.contains('disable') || classList.contains('loading')
+  }
+
+  // 把选择的文件读取成为BASE64
+  const changeBASE64 = file => {
+    return new Promise(resolve => {
+      let fileReader = new FileReader()
+      fileReader.readAsDataURL(file)
+      fileReader.onload = ev => {
+        resolve(ev.target.result)
+      }
+    })
+  }
+
+  // 把文件转buffer,并且前端根据文件内容生成文件名
+  const changeBuffer = file => {
+    return new Promise(resolve => {
+      let fileReader = new FileReader()
+      fileReader.readAsArrayBuffer(file)
+      fileReader.onload = ev => {
+        let buffer = ev.target.result,
+          spark = new SparkMD5.ArrayBuffer(),
+          HASH,
+          suffix
+        spark.append(buffer)
+        HASH = spark.end()
+        // 拿到后缀
+        suffix = /\.([a-zA-Z0-9]+)$/.exec(file.name)[1]
+        resolve({
+          buffer,
+          HASH,
+          suffix,
+          filename: `${HASH}.${suffix}`
+        })
+      }
+    })
+  }
+
+  // 把文件上传到服务器
+
+  // 增加文件操作的样式
+  const changeDisable = flag => {
+    if (flag) {
+      upload_button_select.classList.add('disable')
+      upload_button_upload.classList.add('loading')
+      return
+    }
+    upload_button_select.classList.remove('disable')
+    upload_button_upload.classList.remove('loading')
+  }
+  // 点击上传服务器
+  upload_button_upload.addEventListener('click', async function () {
+    if (checkIsDisable(this)) return
+    if (!_file) {
+      alert('请您先选择要上传的文件')
+      return
+    }
+    changeDisable(true)
+    // 生成文件的HASH名字
+    let { filename } = await changeBuffer(_file)
+    let formData = new FormData()
+    formData.append('file', _file)
+    formData.append('filename', filename)
+    instance.post('/upload_single_name', formData).then(data => {
+      if (+data.code === 0) {
+        alert(`文件已经上传成功~~,您可以基于 ${data.servicePath} 访问这个资源~~`)
+        return
+      }
+      return Promise.reject(data.codeText)
+    }).catch(reason => {
+      alert('文件上传失败，请您稍后再试~~')
+    }).finally(() => {
+      changeDisable(false)
+      upload_abbre.style.display = 'none'
+      upload_abbre_img.src = ''
+      _file = null
+    })
+  })
+
+  // 文件预览，就是把文件对象转换为BASE64，赋值给图片的SRC属性即可
+  upload_inp.addEventListener('change', async function () {
+    const file = upload_inp.files[0]
+    if (!file) return
+    _file = file
+    // 置灰
+    upload_button_select.classList.add('disable')
+    // 拿到BASE64结果
+    const BASE64 = await changeBASE64(file)
+    // upload_abbre.style.display = 'block'
+    upload_abbre_img.src = BASE64  // 将src属性变成base64编码
+    upload_button_select.classList.remove('disable')
+
+  })
+
+  // 触发选择文件事件
+  upload_button_select.addEventListener('click', function () {
+    if (checkIsDisable(this)) return
+    upload_inp.click()
+  })
+
+})()

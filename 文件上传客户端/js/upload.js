@@ -204,6 +204,7 @@ const delay = function delay(interval) {
                     suffix;
                 spark.append(buffer);
                 HASH = spark.end();
+                // 拿到后缀
                 suffix = /\.([a-zA-Z0-9]+)$/.exec(file.name)[1];
                 resolve({
                     buffer,
