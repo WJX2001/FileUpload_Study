@@ -32,6 +32,17 @@
 // })
 
 
+// TODO: 延迟函数
+const delay = (interval) => {
+  typeof interval !== 'number' ? interval = 1000 : null
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve()
+    }, interval)
+  })
+}
+
+
 // TODO: 单一文件上传
 (function () {
   let upload = document.querySelector('#upload1'),
@@ -74,7 +85,6 @@
     if (upload_button_upload.classList.contains('disable') || upload_button_upload.classList.contains('loading')) {
       return
     }
-    changeDisable(true)
     // 非空校验
     if (!_file) {
       alert('请您先选择要上传的文件')
@@ -340,4 +350,62 @@
     upload_inp.click()
   })
 
+})();
+
+
+/* 进度管控 */
+(function () {
+  let upload = document.querySelector('#upload4'),
+    upload_inp = upload.querySelector('.upload_inp'),
+    upload_button_select = upload.querySelector('.upload_button.select'),
+    upload_progress = upload.querySelector('.upload_progress'),
+    upload_progress_value = upload_progress.querySelector('.value')
+
+  // 验证是否处于可操作性状态
+  const checkIsDisable = element => {
+    let classList = element.classList
+    return classList.contains('disable') || classList.contains('loading')
+  }
+
+  // 文件上传操作
+  upload_inp.addEventListener('change', async function () {
+    let file = upload_inp.files[0]
+    if (!file) return
+    upload_button_select.classList.add('loading')
+    try {
+      let formData = new FormData()
+      formData.append('file', file)
+      formData.append('filename', file.name)
+      const data = await instance.post('/upload_single', formData, {
+        // 文件上传中的回调函数 原生使用 xhr.upload.onprogress
+        onUploadProgress (ev) {
+          let { loaded, total } = ev
+          // 计算百分比
+          upload_progress.style.display = 'block'
+          upload_progress_value.style.width = `${loaded / total * 100}%`
+          console.log(ev)
+        }
+      })
+      if (+data.code === 0) {
+        upload_progress_value.style.width = `100%`
+
+        await delay(500)
+        // alert 会阻碍页面渲染
+        alert(`恭喜您，文件上传成功，您可以基于 ${data.servicePath} 访问该文件~~`)
+        return
+      }
+      throw data.codeText
+    } catch (err) {
+      alert('很遗憾，文件上传失败，请您稍后再试~~')
+    } finally {
+      upload_button_select.classList.remove('loading')
+      upload_progress.style.display = 'none'
+      upload_progress_value.style.width = `0%`
+    }
+  })
+
+  upload_button_select.addEventListener('click', function () {
+    if (checkIsDisable(this)) return
+    upload_inp.click()
+  })
 })()
